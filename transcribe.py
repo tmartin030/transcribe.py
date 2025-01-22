@@ -5,7 +5,7 @@ import json  # Import the JSON library
 from docx import Document  # Import the library for Word document creation
 
 # Load the Whisper model
-model = whisper.load_model("base")  # Choose from: tiny, base, small, medium, large
+model = whisper.load_model("large", device="cuda")  # Choose from: tiny, base, small, medium, large
 
 def transcribe_video(video_path):
     # Extract audio from video
