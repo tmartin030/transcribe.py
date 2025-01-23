@@ -24,9 +24,9 @@ def transcribe_video(video_path):
         temperature=0.0, # Set temperature to 0.0 for best results. A value of 0.0 means the model will take the most likely prediction at each step, minimizing variability. Higher values introduce more creative or diverse results but may reduce accuracy.
         compression_ratio_threshold=2.4, # This helps handle text with high compression ratios (e.g., gibberish or highly repetitive text). If the generated text exceeds this ratio, it may be discarded to ensure quality. Lower this value if you're getting overly compressed outputs.
         logprob_threshold=-1.0, # Set the log probability threshold. A lower value will increase the number of words transcribed but may also increase the number of errors. A higher value will reduce the number of words transcribed but may also reduce the number of errors.
-        no_speech_threshold=0.3 # Set the threshold for no speech detection. A higher value will reduce the number of false positives but may also reduce the
-        condition_on_previous_text=False # Disable conditioning on previous text to prevent repetitive outputs
-    )
+            no_speech_threshold=0.5, # Set the threshold for no speech detection. A higher value will reduce the number of false positives but may also reduce the number of words transcribed. A lower value will increase the number of words transcribed but may also increase the number of false positives.
+            condition_on_previous_text=False # Disable conditioning on previous text to prevent repetitive outputs
+        )
     end_time = time.time()  # End the timer
     elapsed_time = end_time - start_time
     hours, remainder = divmod(int(elapsed_time), 3600)
