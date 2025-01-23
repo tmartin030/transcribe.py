@@ -15,6 +15,5 @@ Ensure python and ffmpeg are added to PATH
 if using GPU with CUDA (assuming CUDA v12.1+): 
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-    modify code 
 
-
+the parallel processing branch seems broken. takes too long as is, so I don't think it's an improvement. 012320251646
