@@ -27,7 +27,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder):
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
 
     # Process the file with FFmpeg for cleanup
-    ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
+    ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
 
     # Copy the processed audio file to the processed audio folder
     processed_audio_copy = os.path.join(audio_output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
@@ -68,10 +68,23 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder):
 
     # Insert metadata and warning at the top of the transcription
     result["segments"].insert(0, {
-        "start": 0.0,
-        "end": 0.0,
-        "text": f"Warning: {result['metadata']['warning']}\n\nMetadata:\nFile Path: {result['metadata']['file_path']}\nTranscription Duration: {result['metadata']['transcription_duration']}\nModel: {result['metadata']['model']}\nDevice: {result['metadata']['device']}\nLanguage: {result['metadata']['language']}\nTemperature: {result['metadata']['temperature']}\nCompression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\nLogprob Threshold: {result['metadata']['logprob_threshold']}\nNo Speech Threshold: {result['metadata']['no_speech_threshold']}\nCondition on Previous Text: {result['metadata']['condition_on_previous_text']}\n"
-    })
+    "start": 0.0,
+    "end": 0.0,
+    "text": (
+        f"Warning: {result['metadata']['warning']}\n\n"
+        f"Metadata:\n"
+        f"File Path: {result['metadata']['file_path']}\n"
+        f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
+        f"Model: {result['metadata']['model']}\n"
+        f"Device: {result['metadata']['device']}\n"
+        f"Language: {result['metadata']['language']}\n"
+        f"Temperature: {result['metadata']['temperature']}\n"
+        f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
+        f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
+        f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
+        f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
+    )
+})
 
     return result
 
@@ -104,19 +117,16 @@ def format_time(seconds):
     return f"{int(minutes):02}:{int(seconds):02}"
 
 def batch_transcribe(folder_path):
-    print("Select the Whisper model size for this batch:")
+    print("Select the Whisper model size for this batch (enter the number):")
     print("1. tiny\n2. base\n3. small (default)\n4. medium\n5. large")
-    choice = input("Enter the number corresponding to your choice: ")
-    model_size = "small"  # Default
+    model_size_map = {"1": "tiny", "2": "base", "3": "small", "4": "medium", "5": "large"}
 
-    if choice == "1":
-        model_size = "tiny"
-    elif choice == "2":
-        model_size = "base"
-    elif choice == "4":
-        model_size = "medium"
-    elif choice == "5":
-        model_size = "large"
+    while True:
+        choice = input("Enter the number corresponding to your choice: ")
+        if choice in model_size_map:
+            model_size = model_size_map[choice]
+            break
+        print("Invalid choice. Please enter a number between 1 and 5.")
 
     print(f"Using model: {model_size}")
 
