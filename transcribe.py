@@ -6,11 +6,22 @@ from docx import Document  # Import the library for Word document creation
 import time  # Import time for measuring transcription duration
 from tqdm import tqdm  # Import tqdm for progress display
 
-# Load the Whisper model
-def load_model():
-    return whisper.load_model("medium", device="cuda")  # Choose from: tiny, base, small, medium, large
+# Centralized transcription parameters
+TRANSCRIPTION_PARAMS = {
+    "language": "en",
+    "temperature": 0.0,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -1.0,
+    "no_speech_threshold": 0.3,
+    "condition_on_previous_text": False,
+    "verbose": False
+}
 
-def transcribe_file(file_path):
+# Load the Whisper model
+def load_model(model_size):
+    return whisper.load_model(model_size, device="cuda")  # Choose from: tiny, base, small, medium, large
+
+def transcribe_file(file_path, model_size):
     # Check if the file is a video or audio
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
 
@@ -18,7 +29,7 @@ def transcribe_file(file_path):
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
 
     # Load the Whisper model
-    model = load_model()
+    model = load_model(model_size)
 
     # Get the duration of the audio file
     audio_info = ffmpeg.probe(audio_path)
@@ -33,16 +44,7 @@ def transcribe_file(file_path):
     def progress_callback(segment):
         progress_bar.update(segment["end"] - segment["start"])
 
-    result = model.transcribe(
-        audio_path,
-        language="en",  # Specify language explicitly, helps to improve transcription accuracy
-        temperature=0.0, # Set temperature to 0.0 for best results. A value of 0.0 means the model will take the most likely prediction at each step, minimizing variability. Higher values introduce more creative or diverse results but may reduce accuracy.
-        compression_ratio_threshold=2.4, # Handle text with high compression ratios (e.g., gibberish or highly repetitive text).
-        logprob_threshold=-1.0, # Set the log probability threshold to balance transcription quality and errors.
-        no_speech_threshold=0.4, # Set the threshold for no speech detection.
-        condition_on_previous_text=False, # Disable conditioning on previous text to prevent repetitive outputs.
-        verbose=False
-    )
+    result = model.transcribe(audio_path, **TRANSCRIPTION_PARAMS)
 
     progress_bar.close()
     end_time = time.time()  # End the timer
@@ -58,36 +60,18 @@ def transcribe_file(file_path):
     result['metadata'] = {
         "file_path": file_path,
         "transcription_duration": f"{hours}h {minutes}m {seconds}s",
-        "model": "medium",
+        "model": model_size,
         "device": "cuda",
-        "language": "en",
-        "temperature": 0.0,
-        "compression_ratio_threshold": 2.4,
-        "logprob_threshold": -1.0,
-        "no_speech_threshold": 0.4,
-        "condition_on_previous_text": False
+        **TRANSCRIPTION_PARAMS,
+        "warning": "This transcription may contain inaccuracies, including but not limited to: repetition where none exists, omission of text when speaking occurred, inclusion of text where speaking did not occur, and other transcription problems."
     }
 
-    # Adjust speaker breaks for longer delays
-    merged_segments = []
-    current_segment = None
-
-    for segment in result["segments"]:
-        if current_segment is None:
-            current_segment = segment
-        else:
-            # Check if segments are close enough to merge
-            if segment["start"] - current_segment["end"] < .15:  # decreased gap to .5 seconds before splitting
-                current_segment["text"] += " " + segment["text"]
-                current_segment["end"] = segment["end"]
-            else:
-                merged_segments.append(current_segment)
-                current_segment = segment
-
-    if current_segment:
-        merged_segments.append(current_segment)
-
-    result["segments"] = merged_segments
+    # Insert metadata and warning at the top of the transcription
+    result["segments"].insert(0, {
+        "start": 0.0,
+        "end": 0.0,
+        "text": f"Warning: {result['metadata']['warning']}\n\nMetadata:\nFile Path: {result['metadata']['file_path']}\nTranscription Duration: {result['metadata']['transcription_duration']}\nModel: {result['metadata']['model']}\nDevice: {result['metadata']['device']}\nLanguage: {result['metadata']['language']}\nTemperature: {result['metadata']['temperature']}\nCompression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\nLogprob Threshold: {result['metadata']['logprob_threshold']}\nNo Speech Threshold: {result['metadata']['no_speech_threshold']}\nCondition on Previous Text: {result['metadata']['condition_on_previous_text']}\n"
+    })
 
     return result
 
@@ -120,6 +104,21 @@ def format_time(seconds):
     return f"{int(minutes):02}:{int(seconds):02}"
 
 def batch_transcribe(folder_path):
+    print("Select the Whisper model size for this batch:")
+    print("1. tiny\n2. base\n3. small (default)\n4. medium\n5. large")
+    choice = input("Enter the number corresponding to your choice: ")
+    model_size = "small"  # Default
+
+    if choice == "1":
+        model_size = "tiny"
+    elif choice == "2":
+        model_size = "base"
+    elif choice == "4":
+        model_size = "medium"
+    elif choice == "5":
+        model_size = "large"
+
+    print(f"Using model: {model_size}")
     files = [
         os.path.join(root, file)
         for root, _, files in os.walk(folder_path)
@@ -128,7 +127,7 @@ def batch_transcribe(folder_path):
 
     for file_path in tqdm(files, desc="Processing Files"):
         # Transcribe the file
-        transcription_result = transcribe_file(file_path)
+        transcription_result = transcribe_file(file_path, model_size)
 
         # Save the transcription result as a JSON file
         output_file = os.path.splitext(file_path)[0] + "_transcription.json"
