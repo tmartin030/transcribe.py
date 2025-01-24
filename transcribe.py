@@ -5,6 +5,7 @@ import json  # Import the JSON library
 from docx import Document  # Import the library for Word document creation
 import time  # Import time for measuring transcription duration
 from tqdm import tqdm  # Import tqdm for progress display
+from datetime import datetime  # Import datetime for folder naming
 
 # Centralized transcription parameters
 TRANSCRIPTION_PARAMS = {
@@ -75,7 +76,7 @@ def transcribe_file(file_path, model_size):
 
     return result
 
-def save_to_word(transcription_result, file_path):
+def save_to_word(transcription_result, file_path, output_folder):
     document = Document()
     document.add_heading("Transcription", level=1)
 
@@ -94,8 +95,8 @@ def save_to_word(transcription_result, file_path):
     for key, value in transcription_result.get("metadata", {}).items():
         document.add_paragraph(f"{key}: {value}")
 
-    # Save the document
-    output_word_file = os.path.splitext(file_path)[0] + "_transcription.docx"
+    # Save the document in the transcripts folder
+    output_word_file = os.path.join(output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_transcription.docx")
     document.save(output_word_file)
     print(f"Transcription saved to {output_word_file}")
 
@@ -119,6 +120,12 @@ def batch_transcribe(folder_path):
         model_size = "large"
 
     print(f"Using model: {model_size}")
+
+    # Create a new folder for transcripts
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_folder = os.path.join(folder_path, f"transcripts-{timestamp}")
+    os.makedirs(output_folder, exist_ok=True)
+
     files = []
     for root, _, file_list in os.walk(folder_path):
         for file in file_list:
@@ -136,15 +143,8 @@ def batch_transcribe(folder_path):
         # Transcribe the file
         transcription_result = transcribe_file(file_path, model_size)
 
-        # Save the transcription result as a JSON file
-        output_file = os.path.splitext(file_path)[0] + "_transcription.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(transcription_result, f, indent=4, ensure_ascii=False)
-
-        print(f"Transcription saved to {output_file}")
-
-        # Save to Word document with hyperlinks
-        save_to_word(transcription_result, file_path)
+        # Save to Word document in the transcripts folder
+        save_to_word(transcription_result, file_path, output_folder)
 
 if __name__ == "__main__":
     folder_path = input("Enter the path to the folder containing audio or video files: ")
