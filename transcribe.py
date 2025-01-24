@@ -77,7 +77,7 @@ def transcribe_file(file_path):
             current_segment = segment
         else:
             # Check if segments are close enough to merge
-            if segment["start"] - current_segment["end"] < .02:  # decreased gap to .02 seconds before splitting
+            if segment["start"] - current_segment["end"] < .15:  # decreased gap to .5 seconds before splitting
                 current_segment["text"] += " " + segment["text"]
                 current_segment["end"] = segment["end"]
             else:
