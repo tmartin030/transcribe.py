@@ -29,6 +29,13 @@ def transcribe_file(file_path, model_size):
     # Process the file with FFmpeg for cleanup
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
 
+    # Copy the processed audio file to the transcripts folder
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    processed_audio_copy = os.path.join(output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
+    os.rename(audio_path, processed_audio_copy)
+    print(f"Processed audio file saved as a copy to {processed_audio_copy}")
+
     # Load the Whisper model
     model = load_model(model_size)
 
@@ -55,7 +62,7 @@ def transcribe_file(file_path, model_size):
     print(f"Transcription completed for {file_path} in {hours} hours, {minutes} minutes.")
 
     # Clean up temporary audio file
-    os.remove(audio_path)
+    # Processed audio is retained for QA purposes, not deleted
 
     # Add metadata to the transcription result
     result['metadata'] = {
