@@ -13,7 +13,7 @@ TRANSCRIPTION_PARAMS = {
     "temperature": 0.0,
     "compression_ratio_threshold": 2.4,
     "logprob_threshold": -0.5,
-    "no_speech_threshold": 0.5,
+    "no_speech_threshold": 0.7,
     "condition_on_previous_text": False,
     "verbose": False
 }
