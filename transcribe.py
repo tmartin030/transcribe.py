@@ -119,11 +119,11 @@ def batch_transcribe(folder_path):
         model_size = "large"
 
     print(f"Using model: {model_size}")
-    files = [
-        os.path.join(root, file)
-        for root, _, files in os.walk(folder_path)
-        for file in files if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac'))
-    ]
+    files = []
+    for root, _, file_list in os.walk(folder_path):
+        for file in file_list:
+            if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac')):
+                files.append(os.path.join(root, file))
 
     for file_path in tqdm(files, desc="Processing Files"):
         # Transcribe the file
