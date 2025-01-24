@@ -122,10 +122,17 @@ def batch_transcribe(folder_path):
     files = []
     for root, _, file_list in os.walk(folder_path):
         for file in file_list:
-            if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac')):
+            if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac', '.ps', '.psx')):
                 files.append(os.path.join(root, file))
 
     for file_path in tqdm(files, desc="Processing Files"):
+        # Convert proprietary formats to .wav
+        if file_path.endswith(('.ps', '.psx')):
+            converted_file_path = os.path.splitext(file_path)[0] + "_converted.wav"
+            print(f"Converting {file_path} to {converted_file_path}...")
+            ffmpeg.input(file_path).output(converted_file_path).run(overwrite_output=True)
+            file_path = converted_file_path  # Update file_path to point to the converted file
+
         # Transcribe the file
         transcription_result = transcribe_file(file_path, model_size)
 
