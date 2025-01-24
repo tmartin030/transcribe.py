@@ -22,12 +22,15 @@ TRANSCRIPTION_PARAMS = {
 def load_model(model_size):
     return whisper.load_model(model_size, device="cuda")  # Choose from: tiny, base, small, medium, large
 
-def transcribe_file(file_path, model_size):
+def transcribe_file(file_path, model_size, output_folder="transcripts"):
     # Check if the file is a video or audio
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
 
     # Process the file with FFmpeg for cleanup
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
+
+    # Define the output folder for processed audio files
+    output_folder = os.path.join(os.path.dirname(file_path), "transcripts")
 
     # Copy the processed audio file to the transcripts folder
     if not os.path.exists(output_folder):
