@@ -4,6 +4,7 @@ import os
 import json  # Import the JSON library
 from docx import Document  # Import the library for Word document creation
 import time  # Import time for measuring transcription duration
+import shutil  # Import for moving files
 from tqdm import tqdm  # Import tqdm for progress display
 from datetime import datetime  # Import datetime for folder naming
 
@@ -22,28 +23,27 @@ TRANSCRIPTION_PARAMS = {
 def load_model(model_size):
     return whisper.load_model(model_size, device="cuda")  # Choose from: tiny, base, small, medium, large
 
-def transcribe_file(file_path, model_size, output_folder="transcripts"):
+def transcribe_file(file_path, model_size, output_folder):
     # Check if the file is a video or audio
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
 
     # Process the file with FFmpeg for cleanup
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
 
-    # Define the output folder for processed audio files
-    output_folder = os.path.join(os.path.dirname(file_path), "transcripts")
-
-    # Copy the processed audio file to the transcripts folder
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    processed_audio_copy = os.path.join(output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
-    os.rename(audio_path, processed_audio_copy)
+    # Create a new folder for processed audio files
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    audio_output_folder = os.path.join(os.path.dirname(output_folder), f"transcript-audio-{timestamp}")
+    os.makedirs(audio_output_folder, exist_ok=True)
+    processed_audio_copy = os.path.join(audio_output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
+    shutil.move(audio_path, processed_audio_copy)
+    print(f"Processed audio file saved as a copy to {processed_audio_copy}")
     print(f"Processed audio file saved as a copy to {processed_audio_copy}")
 
     # Load the Whisper model
     model = load_model(model_size)
 
     # Get the duration of the audio file
-    audio_info = ffmpeg.probe(audio_path)
+    audio_info = ffmpeg.probe(processed_audio_copy)
     duration = float(audio_info['streams'][0]['duration'])
 
     # Transcribe audio
@@ -151,7 +151,7 @@ def batch_transcribe(folder_path):
             file_path = converted_file_path  # Update file_path to point to the converted file
 
         # Transcribe the file
-        transcription_result = transcribe_file(file_path, model_size)
+        transcription_result = transcribe_file(file_path, model_size, output_folder)
 
         # Save to Word document in the transcripts folder
         save_to_word(transcription_result, file_path, output_folder)
