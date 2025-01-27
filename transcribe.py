@@ -50,15 +50,16 @@ def load_model(model_size, cuda_enabled):
     return whisper.load_model(model_size, device=device)
 
 def transcribe_file(file_path, model_size, output_folder, audio_output_folder, config):
-   # Check for local ffmpeg and ffprobe binaries
+    # Set FFmpeg and FFprobe paths for local binaries if available
     ffmpeg_executable = "./ffmpeg.exe" if os.path.exists("./ffmpeg.exe") else "ffmpeg"
     ffprobe_executable = "./ffprobe.exe" if os.path.exists("./ffprobe.exe") else "ffprobe"
+    os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_executable)
 
     # Check if the file is a video or audio
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
 
     # Process the file with FFmpeg for cleanup
-    ffmpeg.input(file_path, executable=ffmpeg_executable).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
+    ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
 
     # Copy the processed audio file to the processed audio folder
     processed_audio_copy = os.path.join(audio_output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
@@ -69,7 +70,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     model = load_model(model_size, config["cuda_enabled"])
 
     # Get the duration of the audio file
-    audio_info = ffmpeg.probe(processed_audio_copy, executable=ffprobe_executable)
+    audio_info = ffmpeg.probe(processed_audio_copy)
     duration = float(audio_info['streams'][0]['duration'])
 
     # Transcribe audio
@@ -86,7 +87,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     hours, remainder = divmod(int(elapsed_time), 3600)
     minutes, seconds = divmod(remainder, 60)
     logging.info(f"Transcription completed for {file_path} in {hours} hours, {minutes} minutes.")
-  
+
     # Add metadata to the transcription result
     result['metadata'] = {
         "file_path": file_path,
@@ -94,28 +95,28 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
         "model": model_size,
         "device": "cuda" if config["cuda_enabled"] else "cpu",
         **config["transcription_params"],
-        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it. Please report other issues or concerns to travis.martin@mspd.mo.gov"
+        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it."
     }
 
     # Insert metadata and warning at the top of the transcription
     result["segments"].insert(0, {
-    "start": 0.0,
-    "end": 0.0,
-    "text": (
-        f"Warning: {result['metadata']['warning']}\n\n"
-        f"Metadata:\n"
-        f"File Path: {result['metadata']['file_path']}\n"
-        f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
-        f"Model: {result['metadata']['model']}\n"
-        f"Device: {result['metadata']['device']}\n"
-        f"Language: {result['metadata']['language']}\n"
-        f"Temperature: {result['metadata']['temperature']}\n"
-        f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
-        f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
-        f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
-        f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
-    )
-})
+        "start": 0.0,
+        "end": 0.0,
+        "text": (
+            f"Warning: {result['metadata']['warning']}\n\n"
+            f"Metadata:\n"
+            f"File Path: {result['metadata']['file_path']}\n"
+            f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
+            f"Model: {result['metadata']['model']}\n"
+            f"Device: {result['metadata']['device']}\n"
+            f"Language: {result['metadata']['language']}\n"
+            f"Temperature: {result['metadata']['temperature']}\n"
+            f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
+            f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
+            f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
+            f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
+        )
+    })
 
     return result
 

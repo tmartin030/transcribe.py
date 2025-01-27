@@ -1,0 +1,1 @@
+2025-01-27 12:06:59,272 - INFO - Using model: small
