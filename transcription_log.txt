@@ -26,3 +26,21 @@
 2025-01-27 12:43:53,082 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-42-19\the-dude_processed_copy_transcription.docx
 2025-01-27 12:43:53,082 - INFO - Enabling internet access.
 2025-01-27 12:43:53,082 - INFO - Batch transcription completed.
+2025-01-27 12:51:33,647 - INFO - Using model: large
+2025-01-27 12:51:33,648 - INFO - Disabling internet access.
+2025-01-27 12:51:33,681 - ERROR - Failed to disable internet access.
+2025-01-27 12:51:57,183 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 12:52:22,425 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 0 minutes.
+2025-01-27 12:52:22,466 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-51-33\the-dude_transcription.docx
+2025-01-27 12:52:22,467 - INFO - Enabling internet access.
+2025-01-27 12:52:22,502 - INFO - Internet successfully enabled.
+2025-01-27 12:52:22,502 - INFO - Batch transcription completed.
+2025-01-27 13:13:45,969 - INFO - Using model: large
+2025-01-27 13:13:45,969 - INFO - Disabling internet access.
+2025-01-27 13:13:46,128 - INFO - Internet successfully disabled.
+2025-01-27 13:14:07,862 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 13:14:33,656 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 0 minutes.
+2025-01-27 13:14:33,709 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_13-13-46\the-dude_transcription.docx
+2025-01-27 13:14:33,710 - INFO - Enabling internet access.
+2025-01-27 13:14:38,349 - INFO - Internet successfully enabled.
+2025-01-27 13:14:38,349 - INFO - Batch transcription completed.

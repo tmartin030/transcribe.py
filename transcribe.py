@@ -8,8 +8,7 @@ from tqdm import tqdm  # Import tqdm for progress display
 from datetime import datetime  # Import datetime for folder naming
 import logging
 import json
-import ctypes  # Import for enabling/disabling internet
-import socket  # Import for checking internet connection
+import subprocess  # For system commands
 
 # Set up logging
 log_file = "transcription_log.txt"
@@ -47,34 +46,23 @@ def load_config():
             config = json.load(f)
     return config
 
+# Function to disable internet
 def disable_internet():
-    logging.info("Disabling internet access.")
-    ctypes.windll.wininet.InternetSetOptionW(0, 77, None, 0)
-    
-    # Check connectivity
-    if not test_connectivity():
-        logging.info("Internet successfully disabled.")
-    else:
-        logging.error("Failed to disable internet access.")
-
-def enable_internet():
-    logging.info("Enabling internet access.")
-    ctypes.windll.wininet.InternetSetOptionW(0, 78, None, 0)
-    
-    # Check connectivity
-    if test_connectivity():
-        logging.info("Internet successfully enabled.")
-    else:
-        logging.error("Failed to enable internet access.")
-
-def test_connectivity():
-    """Check if the system can connect to the internet."""
     try:
-        # Try to connect to a public DNS server (Google's 8.8.8.8) on port 53
-        socket.create_connection(("8.8.8.8", 53), timeout=3)
-        return True  # Internet is accessible
-    except (socket.timeout, socket.error):
-        return False  # No internet access
+        logging.info("Disabling internet access.")
+        subprocess.run(["ipconfig", "/release"], check=True, shell=True)
+        logging.info("Internet successfully disabled.")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to disable internet access: {e}")
+
+# Function to enable internet
+def enable_internet():
+    try:
+        logging.info("Enabling internet access.")
+        subprocess.run(["ipconfig", "/renew"], check=True, shell=True)
+        logging.info("Internet successfully enabled.")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to enable internet access: {e}")
 
 # Load the Whisper model
 def load_model(model_size, cuda_enabled):
@@ -82,10 +70,9 @@ def load_model(model_size, cuda_enabled):
     return whisper.load_model(model_size, device=device)
 
 def transcribe_file(file_path, model_size, output_folder, audio_output_folder, config):
-    # Set FFmpeg and FFprobe paths for local binaries if available
+    # Check for local ffmpeg and ffprobe binaries
     ffmpeg_executable = "./ffmpeg.exe" if os.path.exists("./ffmpeg.exe") else "ffmpeg"
     ffprobe_executable = "./ffprobe.exe" if os.path.exists("./ffprobe.exe") else "ffprobe"
-    os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_executable)
 
     # Check if the file is a video or audio
     audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
@@ -93,16 +80,11 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     # Process the file with FFmpeg for cleanup
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
 
-    # Copy the processed audio file to the processed audio folder
-    processed_audio_copy = os.path.join(audio_output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
-    shutil.move(audio_path, processed_audio_copy)
-    print(f"Processed audio file saved as a copy to {processed_audio_copy}")
-
     # Load the Whisper model
     model = load_model(model_size, config["cuda_enabled"])
 
     # Get the duration of the audio file
-    audio_info = ffmpeg.probe(processed_audio_copy)
+    audio_info = ffmpeg.probe(audio_path)
     duration = float(audio_info['streams'][0]['duration'])
 
     # Transcribe audio
@@ -111,7 +93,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
 
     progress_bar = tqdm(total=duration, desc="Transcribing", unit="s")
 
-    result = model.transcribe(processed_audio_copy, **config["transcription_params"])
+    result = model.transcribe(audio_path, **config["transcription_params"])
 
     progress_bar.close()
     end_time = time.time()  # End the timer
@@ -119,7 +101,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     hours, remainder = divmod(int(elapsed_time), 3600)
     minutes, seconds = divmod(remainder, 60)
     logging.info(f"Transcription completed for {file_path} in {hours} hours, {minutes} minutes.")
-
+  
     # Add metadata to the transcription result
     result['metadata'] = {
         "file_path": file_path,
@@ -127,28 +109,31 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
         "model": model_size,
         "device": "cuda" if config["cuda_enabled"] else "cpu",
         **config["transcription_params"],
-        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it."
+        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it. Please report other issues or concerns to travis.martin@mspd.mo.gov"
     }
 
     # Insert metadata and warning at the top of the transcription
     result["segments"].insert(0, {
-        "start": 0.0,
-        "end": 0.0,
-        "text": (
-            f"Warning: {result['metadata']['warning']}\n\n"
-            f"Metadata:\n"
-            f"File Path: {result['metadata']['file_path']}\n"
-            f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
-            f"Model: {result['metadata']['model']}\n"
-            f"Device: {result['metadata']['device']}\n"
-            f"Language: {result['metadata']['language']}\n"
-            f"Temperature: {result['metadata']['temperature']}\n"
-            f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
-            f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
-            f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
-            f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
-        )
-    })
+    "start": 0.0,
+    "end": 0.0,
+    "text": (
+        f"Warning: {result['metadata']['warning']}\n\n"
+        f"Metadata:\n"
+        f"File Path: {result['metadata']['file_path']}\n"
+        f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
+        f"Model: {result['metadata']['model']}\n"
+        f"Device: {result['metadata']['device']}\n"
+        f"Language: {result['metadata']['language']}\n"
+        f"Temperature: {result['metadata']['temperature']}\n"
+        f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
+        f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
+        f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
+        f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
+    )
+})
+
+    # Clean up temporary audio file
+    os.remove(audio_path)
 
     return result
 
@@ -198,24 +183,20 @@ def batch_transcribe():
     output_folder = os.path.join(folder_path, f"transcripts-{timestamp}")
     os.makedirs(output_folder, exist_ok=True)
 
-    # Create a new folder for processed audio files
-    audio_output_folder = os.path.join(folder_path, f"transcript-audio-{timestamp}")
-    os.makedirs(audio_output_folder, exist_ok=True)
-
     files = []
     for root, _, file_list in os.walk(folder_path):
         for file in file_list:
-            if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac')):
+            if file.endswith((".mp4", ".avi", ".mkv", ".mov", ".wav", ".mp3", ".aac", ".flac")):
                 files.append(os.path.join(root, file))
 
     for file_path in tqdm(files, desc="Processing Files"):
         # Transcribe the file
-        transcription_result = transcribe_file(file_path, model_size, output_folder, audio_output_folder, config)
+        transcription_result = transcribe_file(file_path, model_size, output_folder, None, config)
 
         # Save to Word document in the transcripts folder
         save_to_word(transcription_result, file_path, output_folder)
 
- # Re-enable internet if it was disabled
+    # Re-enable internet if it was disabled
     if config.get("disable_internet", False):
         enable_internet()
 
