@@ -8,6 +8,7 @@ from tqdm import tqdm  # Import tqdm for progress display
 from datetime import datetime  # Import datetime for folder naming
 import logging
 import json
+import ctypes  # Import for enabling/disabling internet
 
 # Set up logging
 log_file = "transcription_log.txt"
@@ -34,7 +35,8 @@ def load_config():
                 "no_speech_threshold": 0.7,
                 "condition_on_previous_text": False,
                 "verbose": False
-            }
+            },
+            "disable_internet": True
         }
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=4)
@@ -43,6 +45,16 @@ def load_config():
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
     return config
+
+# Function to disable internet
+def disable_internet():
+    logging.info("Disabling internet access.")
+    ctypes.windll.wininet.InternetSetOptionW(0, 77, None, 0)
+
+# Function to enable internet
+def enable_internet():
+    logging.info("Enabling internet access.")
+    ctypes.windll.wininet.InternetSetOptionW(0, 78, None, 0)
 
 # Load the Whisper model
 def load_model(model_size, cuda_enabled):
@@ -157,6 +169,10 @@ def batch_transcribe():
 
     logging.info(f"Using model: {model_size}")
 
+    # Disable internet if configured
+    if config.get("disable_internet", False):
+        disable_internet()
+
     # Create a new folder for transcripts
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_folder = os.path.join(folder_path, f"transcripts-{timestamp}")
@@ -178,6 +194,10 @@ def batch_transcribe():
 
         # Save to Word document in the transcripts folder
         save_to_word(transcription_result, file_path, output_folder)
+
+ # Re-enable internet if it was disabled
+    if config.get("disable_internet", False):
+        enable_internet()
 
 if __name__ == "__main__":
     batch_transcribe()

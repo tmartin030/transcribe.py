@@ -1,1 +1,28 @@
 2025-01-27 12:06:59,272 - INFO - Using model: small
+2025-01-27 12:10:46,116 - INFO - Using model: small
+2025-01-27 12:10:53,610 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 12:11:05,142 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 0 minutes.
+2025-01-27 12:11:05,209 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-10-46\the-dude_transcription.docx
+2025-01-27 12:11:05,210 - INFO - Batch transcription completed.
+2025-01-27 12:14:41,164 - INFO - Using model: large
+2025-01-27 12:15:08,110 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 12:16:37,813 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 1 minutes.
+2025-01-27 12:16:37,869 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-14-41\the-dude_transcription.docx
+2025-01-27 12:16:37,869 - INFO - Batch transcription completed.
+2025-01-27 12:35:51,025 - INFO - Using model: large
+2025-01-27 12:35:51,025 - INFO - Disabling internet access.
+2025-01-27 12:36:47,673 - INFO - Using model: large
+2025-01-27 12:37:12,112 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 12:37:38,182 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 0 minutes.
+2025-01-27 12:37:38,227 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-36-47\the-dude_transcription.docx
+2025-01-27 12:37:38,228 - INFO - Batch transcription completed.
+2025-01-27 12:42:19,872 - INFO - Using model: large
+2025-01-27 12:42:19,873 - INFO - Disabling internet access.
+2025-01-27 12:42:42,410 - INFO - Transcribing audio for C:/transcription-files\the-dude.mp4...
+2025-01-27 12:43:08,289 - INFO - Transcription completed for C:/transcription-files\the-dude.mp4 in 0 hours, 0 minutes.
+2025-01-27 12:43:08,338 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-42-19\the-dude_transcription.docx
+2025-01-27 12:43:33,150 - INFO - Transcribing audio for C:/transcription-files\transcript-audio-2025-01-27_12-36-47\the-dude_processed_copy.wav...
+2025-01-27 12:43:53,037 - INFO - Transcription completed for C:/transcription-files\transcript-audio-2025-01-27_12-36-47\the-dude_processed_copy.wav in 0 hours, 0 minutes.
+2025-01-27 12:43:53,082 - INFO - Transcription saved to C:/transcription-files\transcripts-2025-01-27_12-42-19\the-dude_processed_copy_transcription.docx
+2025-01-27 12:43:53,082 - INFO - Enabling internet access.
+2025-01-27 12:43:53,082 - INFO - Batch transcription completed.
