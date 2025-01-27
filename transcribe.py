@@ -9,6 +9,7 @@ from datetime import datetime  # Import datetime for folder naming
 import logging
 import json
 import ctypes  # Import for enabling/disabling internet
+import socket  # Import for checking internet connection
 
 # Set up logging
 log_file = "transcription_log.txt"
@@ -46,15 +47,34 @@ def load_config():
             config = json.load(f)
     return config
 
-# Function to disable internet
 def disable_internet():
     logging.info("Disabling internet access.")
     ctypes.windll.wininet.InternetSetOptionW(0, 77, None, 0)
+    
+    # Check connectivity
+    if not test_connectivity():
+        logging.info("Internet successfully disabled.")
+    else:
+        logging.error("Failed to disable internet access.")
 
-# Function to enable internet
 def enable_internet():
     logging.info("Enabling internet access.")
     ctypes.windll.wininet.InternetSetOptionW(0, 78, None, 0)
+    
+    # Check connectivity
+    if test_connectivity():
+        logging.info("Internet successfully enabled.")
+    else:
+        logging.error("Failed to enable internet access.")
+
+def test_connectivity():
+    """Check if the system can connect to the internet."""
+    try:
+        # Try to connect to a public DNS server (Google's 8.8.8.8) on port 53
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True  # Internet is accessible
+    except (socket.timeout, socket.error):
+        return False  # No internet access
 
 # Load the Whisper model
 def load_model(model_size, cuda_enabled):
