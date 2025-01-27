@@ -164,3 +164,4 @@ if __name__ == "__main__":
         print("Folder not found!")
     else:
         batch_transcribe(folder_path)
+        
