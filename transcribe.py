@@ -1,45 +1,99 @@
 import whisper
 import ffmpeg
 import os
-import json  # Import the JSON library
+import shutil  # Import for file operations
 from docx import Document  # Import the library for Word document creation
 import time  # Import time for measuring transcription duration
+from tqdm import tqdm  # Import tqdm for progress display
+from datetime import datetime  # Import datetime for folder naming
+
+# Centralized transcription parameters
+TRANSCRIPTION_PARAMS = {
+    "language": "en",
+    "temperature": 0.0,
+    "compression_ratio_threshold": 2.4,
+    "logprob_threshold": -0.5,
+    "no_speech_threshold": 0.7,
+    "condition_on_previous_text": False,
+    "verbose": False
+}
 
 # Load the Whisper model
-model = whisper.load_model("large", device="cuda")  # Choose from: tiny, base, small, medium, large
+def load_model(model_size):
+    return whisper.load_model(model_size, device="cuda")  # Choose from: tiny, base, small, medium, large
 
-def transcribe_video(video_path):
-    # Extract audio from video
-    audio_path = "audio.wav"
-    # Perform audio cleanup (optional, but recommended) for noisy audio, narrow the range (e.g., highpass=f=250, lowpass=f=2500).
-    ffmpeg.input(video_path).output(audio_path, af="highpass=f=200, lowpass=f=3000").run(overwrite_output=True)
-    # Extract audio without cleanup (alternative if no audio cleanup is needed)
-    # ffmpeg.input(video_path).output(audio_path, format="wav").run(overwrite_output=True)
-    
+def transcribe_file(file_path, model_size, output_folder, audio_output_folder):
+    # Path to the bundled ffmpeg.exe and ffprobe.exe (ffprobe may be removed once program is running smoothly; it's used for progress status)
+    ffmpeg_executable = os.path.join(os.path.dirname(__file__), "ffmpeg.exe")
+    ffprobe_executable = os.path.join(os.path.dirname(__file__), "ffprobe.exe")
+
+    # Check if the file is a video or audio 
+    # TM Note: unsure if this code actually checks if it's audio or video.. follow-up needed.
+    audio_path = f"{os.path.splitext(file_path)[0]}_processed.wav"
+
+    # Process the file with FFmpeg for cleanup
+    ffmpeg.input(file_path, executable=ffmpeg_executable).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
+
+    # Copy the processed audio file to the processed audio folder
+    processed_audio_copy = os.path.join(audio_output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_processed_copy.wav")
+    shutil.move(audio_path, processed_audio_copy)
+    print(f"Processed audio file saved as a copy to {processed_audio_copy}")
+
+    # Load the Whisper model
+    model = load_model(model_size)
+
+    # Get the duration of the audio file
+    audio_info = ffmpeg.probe(processed_audio_copy, executable=ffprobe_executable)
+    duration = float(audio_info['streams'][0]['duration'])
+
     # Transcribe audio
-    print("Transcribing audio...")
+    print(f"Transcribing audio for {file_path}...")
     start_time = time.time()  # Start the timer for measuring transcription duration
-    result = model.transcribe(
-        audio_path,
-        language="en",  # Specify language explicitly, helps to improve transcription accuracy
-        temperature=0.0, # Set temperature to 0.0 for best results. A value of 0.0 means the model will take the most likely prediction at each step, minimizing variability. Higher values introduce more creative or diverse results but may reduce accuracy.
-        compression_ratio_threshold=2.4, # This helps handle text with high compression ratios (e.g., gibberish or highly repetitive text). If the generated text exceeds this ratio, it may be discarded to ensure quality. Lower this value if you're getting overly compressed outputs.
-        logprob_threshold=-1.0, # Set the log probability threshold. A lower value will increase the number of words transcribed but may also increase the number of errors. A higher value will reduce the number of words transcribed but may also reduce the number of errors.
-        no_speech_threshold=0.3 # Set the threshold for no speech detection. A higher value will reduce the number of false positives but may also reduce the
-    )
+
+    progress_bar = tqdm(total=duration, desc="Transcribing", unit="s")
+
+    result = model.transcribe(processed_audio_copy, **TRANSCRIPTION_PARAMS)
+
+    progress_bar.close()
     end_time = time.time()  # End the timer
     elapsed_time = end_time - start_time
     hours, remainder = divmod(int(elapsed_time), 3600)
     minutes, seconds = divmod(remainder, 60)
-    print(f"Transcription completed in {hours} hours, {minutes} minutes.")
+    print(f"Transcription completed for {file_path} in {hours} hours, {minutes} minutes.")
 
-    # Clean up temporary audio file
-    os.remove(audio_path)
+    # Add metadata to the transcription result
+    result['metadata'] = {
+        "file_path": file_path,
+        "transcription_duration": f"{hours}h {minutes}m {seconds}s",
+        "model": model_size,
+        "device": "cuda",
+        **TRANSCRIPTION_PARAMS,
+        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it. Please report other issues or concerns to travis.martin@mspd.mo.gov"
+    }
 
-    # Return the full result for JSON output
+    # Insert metadata and warning at the top of the transcription
+    result["segments"].insert(0, {
+    "start": 0.0,
+    "end": 0.0,
+    "text": (
+        f"Warning: {result['metadata']['warning']}\n\n"
+        f"Metadata:\n"
+        f"File Path: {result['metadata']['file_path']}\n"
+        f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
+        f"Model: {result['metadata']['model']}\n"
+        f"Device: {result['metadata']['device']}\n"
+        f"Language: {result['metadata']['language']}\n"
+        f"Temperature: {result['metadata']['temperature']}\n"
+        f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
+        f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
+        f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
+        f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
+    )
+})
+
     return result
 
-def save_to_word(transcription_result, video_file):
+def save_to_word(transcription_result, file_path, output_folder):
     document = Document()
     document.add_heading("Transcription", level=1)
 
@@ -50,11 +104,16 @@ def save_to_word(transcription_result, video_file):
         # Format timestamps and create a hyperlink-like format
         timestamp = f"[{format_time(start_time)}]"
         paragraph = document.add_paragraph()
-        paragraph.add_run(timestamp).bold = True
+        paragraph.add_run(timestamp).italic = True
         paragraph.add_run(f" {text}")
 
-    # Save the document
-    output_word_file = os.path.splitext(video_file)[0] + "_transcription.docx"
+    # Add metadata to the document
+    document.add_heading("Metadata", level=2)
+    for key, value in transcription_result.get("metadata", {}).items():
+        document.add_paragraph(f"{key}: {value}")
+
+    # Save the document in the transcripts folder
+    output_word_file = os.path.join(output_folder, f"{os.path.basename(os.path.splitext(file_path)[0])}_transcription.docx")
     document.save(output_word_file)
     print(f"Transcription saved to {output_word_file}")
 
@@ -62,20 +121,46 @@ def format_time(seconds):
     minutes, seconds = divmod(int(seconds), 60)
     return f"{int(minutes):02}:{int(seconds):02}"
 
+def batch_transcribe(folder_path):
+    print("Select the Whisper model size for this batch (enter the number):")
+    print("1. tiny\n2. base\n3. small (default)\n4. medium\n5. large")
+    model_size_map = {"1": "tiny", "2": "base", "3": "small", "4": "medium", "5": "large"}
+
+    while True:
+        choice = input("Enter the number corresponding to your choice: ")
+        if choice in model_size_map:
+            model_size = model_size_map[choice]
+            break
+        print("Invalid choice. Please enter a number between 1 and 5.")
+
+    print(f"Using model: {model_size}")
+
+    # Create a new folder for transcripts
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_folder = os.path.join(folder_path, f"transcripts-{timestamp}")
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Create a new folder for processed audio files
+    audio_output_folder = os.path.join(folder_path, f"transcript-audio-{timestamp}")
+    os.makedirs(audio_output_folder, exist_ok=True)
+
+    files = []
+    for root, _, file_list in os.walk(folder_path):
+        for file in file_list:
+            if file.endswith(('.mp4', '.avi', '.mkv', '.mov', '.wav', '.mp3', '.aac', '.flac')):
+                files.append(os.path.join(root, file))
+
+    for file_path in tqdm(files, desc="Processing Files"):
+     
+        # Transcribe the file
+        transcription_result = transcribe_file(file_path, model_size, output_folder, audio_output_folder)
+
+        # Save to Word document in the transcripts folder
+        save_to_word(transcription_result, file_path, output_folder)
+
 if __name__ == "__main__":
-    video_file = input("Enter the path to the video file: ")
-    if not os.path.exists(video_file):
-        print("File not found!")
+    folder_path = input("Enter the path to the folder containing audio or video files: ")
+    if not os.path.exists(folder_path):
+        print("Folder not found!")
     else:
-        # Transcribe the video
-        transcription_result = transcribe_video(video_file)
-
-        # Save the transcription result as a JSON file
-        output_file = os.path.splitext(video_file)[0] + "_transcription.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(transcription_result, f, indent=4, ensure_ascii=False)
-
-        print(f"Transcription saved to {output_file}")
-
-        # Save to Word document with hyperlinks
-        save_to_word(transcription_result, video_file)
+        batch_transcribe(folder_path)
