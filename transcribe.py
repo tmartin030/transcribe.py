@@ -25,8 +25,8 @@ def load_config():
         # Default configuration if config file does not exist
         config = {
             "folder_path": "C:/path/to/default/folder",
-            "model_size": "small",
-            "cuda_enabled": True,
+            "model_size": "large", # Set to large for best results, but it will be slow without a CUDA-enabled GPU and CUDA setting below set to true
+            "cuda_enabled": True, # Set to false if system does not have a CUDA-enabled GPU
             "transcription_params": {
                 "language": "en",
                 "temperature": 0.0,
@@ -109,28 +109,15 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
         "model": model_size,
         "device": "cuda" if config["cuda_enabled"] else "cpu",
         **config["transcription_params"],
-        "warning": "This transcription DEFINITELY contains inaccuracies. Certain words will be inaccurate, and repeated text when nobody is talking is to be expected, as we are erring on the side of picking up faint speech over disregarding it. Please report other issues or concerns to travis.martin@mspd.mo.gov"
+        "warning": "Notice: This transcription may contain inaccuracies. Variations in word recognition, repetition of text during periods of silence, and occasional omissions or additions are possible, as the system prioritizes capturing faint speech over excluding it. If you have any concerns, questions, or feedback, please contact Travis Martin at travis.martin@mspd.mo.gov."
     }
 
-    # Insert metadata and warning at the top of the transcription
+    # Insert warning at the top of the transcription
     result["segments"].insert(0, {
     "start": 0.0,
     "end": 0.0,
-    "text": (
-        f"Warning: {result['metadata']['warning']}\n\n"
-        f"Metadata:\n"
-        f"File Path: {result['metadata']['file_path']}\n"
-        f"Transcription Duration: {result['metadata']['transcription_duration']}\n"
-        f"Model: {result['metadata']['model']}\n"
-        f"Device: {result['metadata']['device']}\n"
-        f"Language: {result['metadata']['language']}\n"
-        f"Temperature: {result['metadata']['temperature']}\n"
-        f"Compression Ratio Threshold: {result['metadata']['compression_ratio_threshold']}\n"
-        f"Logprob Threshold: {result['metadata']['logprob_threshold']}\n"
-        f"No Speech Threshold: {result['metadata']['no_speech_threshold']}\n"
-        f"Condition on Previous Text: {result['metadata']['condition_on_previous_text']}"
-    )
-})
+    "text": f"Warning: {result['metadata']['warning']}"
+    })
 
     # Clean up temporary audio file
     os.remove(audio_path)
@@ -151,7 +138,7 @@ def save_to_word(transcription_result, file_path, output_folder):
         paragraph.add_run(timestamp).italic = True
         paragraph.add_run(f" {text}")
 
-    # Add metadata to the document
+    # Add metadata to the bottom of the document
     document.add_heading("Metadata", level=2)
     for key, value in transcription_result.get("metadata", {}).items():
         document.add_paragraph(f"{key}: {value}")
