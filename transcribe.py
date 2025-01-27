@@ -9,6 +9,7 @@ from datetime import datetime  # Import datetime for folder naming
 import logging
 import json
 import subprocess  # For system commands
+from pyannote.audio import Pipeline # Import the pyannote library for speaker diarization
 
 # Set up logging
 log_file = "transcription_log.txt"
@@ -64,6 +65,22 @@ def enable_internet():
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to enable internet access: {e}")
 
+# Load the pretrained speaker diarization pipeline globally
+diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization")
+
+def perform_diarization(audio_path):
+    logging.info(f"Performing diarization for {audio_path}...")
+    diarization_result = diarization_pipeline(audio_path)
+    speaker_segments = []
+
+    for turn, _, speaker in diarization_result.itertracks(yield_label=True):
+        speaker_segments.append({
+            "speaker": speaker,
+            "start": turn.start,
+            "end": turn.end,
+        })
+    return speaker_segments
+    
 # Load the Whisper model
 def load_model(model_size, cuda_enabled):
     device = "cuda" if cuda_enabled else "cpu"
@@ -79,6 +96,9 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
 
     # Process the file with FFmpeg for cleanup
     ffmpeg.input(file_path).output(audio_path, af="highpass=f=200, lowpass=f=3000", loglevel="error").run(overwrite_output=True)
+
+    # Perform speaker diarization
+    speaker_segments = perform_diarization(audio_path)
 
     # Load the Whisper model
     model = load_model(model_size, config["cuda_enabled"])
@@ -102,6 +122,24 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     minutes, seconds = divmod(remainder, 60)
     logging.info(f"Transcription completed for {file_path} in {hours} hours, {minutes} minutes.")
   
+    # Add speaker labels to transcription segments
+    labeled_segments = []
+    for segment in result["segments"]:
+        for speaker_segment in speaker_segments:
+            if speaker_segment["start"] <= segment["start"] < speaker_segment["end"]:
+                labeled_segments.append({
+                    "speaker": speaker_segment["speaker"],
+                    "start": segment["start"],
+                    "end": segment["end"],
+                    "text": segment["text"],
+                })
+                break
+        else:
+            labeled_segments.append(segment)  # Keep the original segment if no match
+
+    result["segments"] = labeled_segments
+    result["speaker_segments"] = speaker_segments
+
     # Add metadata to the transcription result
     result['metadata'] = {
         "file_path": file_path,
@@ -116,7 +154,7 @@ def transcribe_file(file_path, model_size, output_folder, audio_output_folder, c
     result["segments"].insert(0, {
     "start": 0.0,
     "end": 0.0,
-    "text": f"Warning: {result['metadata']['warning']}"
+    "text": f"{result['metadata']['warning']}"
     })
 
     # Clean up temporary audio file
