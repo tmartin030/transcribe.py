@@ -1,0 +1,42 @@
+# Ignore audio files
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+
+# Ignore video files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wmv
+
+# Ignore binary files (executables, etc.)
+*.exe
+*.spec
+
+# Ignore build directories
+dist/
+build/
+
+# Ignore large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.iso
+
+# Ignore logs
+*.log
+
+# Ignore config files (optional, if they contain sensitive data)
+config.json
+
+# Ignore temporary and system files
+*.tmp
+*.swp
+*.bak
+*.swo
+*.DS_Store
+Thumbs.db
